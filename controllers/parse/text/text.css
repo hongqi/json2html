@@ -1,0 +1,6 @@
+.rich-text {
+	cursor: pointer;
+	margin: 10px;
+	word-break: break-all;
+	min-height: 1em;
+}

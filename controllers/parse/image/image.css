@@ -1,0 +1,9 @@
+.image-item {
+	width: 100%;
+}
+
+.image-link {
+	display: block;
+	margin-top: 10px;
+	margin-bottom: 10px;
+}

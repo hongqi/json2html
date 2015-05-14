@@ -1,0 +1,13 @@
+{
+	"deploy": {
+		"from": "./static", 
+		"to": "/mnt/mfs/webroot/tetris"
+	}, 
+	"libs": {
+		"common": ["mod"],
+		"webpage": ["jquery"],
+		"webapp": ["zepto"],
+		"options": []
+	},
+	"domain": "//toutiao.com/tetris"
+}

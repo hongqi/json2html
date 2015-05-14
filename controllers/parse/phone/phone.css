@@ -1,0 +1,24 @@
+
+.tel-btn {
+	display: block;
+	margin: 16px auto;
+	cursor: pointer;
+	color: #fff;
+	height: 40px;
+	line-height: 40px;
+	background-color: #d54040;
+	text-align: center;
+	border-radius: 8px;
+	box-sizing: border-box;
+	text-decoration: none;
+	font-size: 18px;
+}
+
+.phone-icon {
+	width: 11px;
+	height: 15px;
+	background: url("//toutiao.com/tetris/images/phone-icon.png") no-repeat;
+	background-size: 12px;
+	display: inline-block;
+	padding-right: 5px;
+}
