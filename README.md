@@ -23,3 +23,6 @@ parse json to html as a part of self-create site
 ###3. 调用服务：
 	1. 发送post请求: 详见test下的postRequest.js
 	2. 添加测试数据到test目录下面以{filename}.json命名，浏览器访问:	localhost:30001/json2html/{filename}即可预览
+
+##注意
+使用时需要配置自己的静态文件域名和服务器上的静态文件路径，建议使用nginx反向代理添加自己的域名。配置文件:controllers/config.json
