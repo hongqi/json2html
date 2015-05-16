@@ -33,7 +33,6 @@ app.use(function(err, req, res, next) {
   });
 });
 
-
 function getLine(offset) {
   var stack = new Error().stack.split('\n'),
       line = stack[(offset || 1) + 1].split(':');
