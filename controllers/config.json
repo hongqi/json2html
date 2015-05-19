@@ -1,13 +1,28 @@
 {
-	"deploy": {
-		"from": "./static", 
-		"to": "{your static dir}"
-	}, 
-	"libs": {
-		"common": ["mod"],
-		"webpage": ["jquery"],
-		"webapp": ["zepto"],
-		"options": []
+	"online": {
+		"deploy": {
+			"from": "./static", 
+			"to": "/mnt/mfs/webroot/tetris"
+		}, 
+		"libs": {
+			"common": ["mod"],
+			"webpage": ["jquery"],
+			"webapp": ["zepto"],
+			"options": []
+		},
+		"domain": "//toutiao.com/tetris"
 	},
-	"domain": "{your static domain}"
+	"dev": {
+		"deploy": {
+			"from": "./static",
+			"to": "../../webroot/tetris"
+		},
+		"libs": {
+			"common": ["mod"],
+			"webpage": ["jquery"],
+			"webapp": ["zepto"],
+			"options": []
+		},
+		"domain": "//ad.toutiao.com/static/tetris"
+	}
 }

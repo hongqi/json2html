@@ -33,6 +33,17 @@
             "imgsrc": "http://p0.pstatp.com/origin/3190/4131751975"
         }
     },
+        {
+        "name": "picture",
+        "type": "normal",
+        "deleteable": true,
+        "movable": true,
+        "configable": true,
+        "value": {
+            "link": "",
+            "imgsrc": "http://p2.pstatp.com/list/3667/1814434408"
+        }
+    },
      {
         "name": "telbutton",
         "type": "normal",

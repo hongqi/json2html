@@ -1,0 +1,16 @@
+.slide-container {
+	position: relative;
+}
+
+#slider {
+	position: relative;
+	overflow: hidden;
+}
+
+.slider-wrap {
+	position: relative;
+	overflow: hidden;
+	font-size: 0;
+	width: 100%
+	padding-bottom: 75%;
+}

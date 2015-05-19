@@ -2,7 +2,9 @@ var model = require('../models/json');
 var util = require('../common/util');
 var parse = require('./parse/parse');
 var complie = require('./complie');
+var colors = require('colors');
 
+var stConfig = require('./config');
 var cheerio = require('cheerio');
 var Q = require('q');
 var path = require('path');
@@ -25,8 +27,11 @@ var json2html = {
 		this.isPreview = isPreview;
 		this.site = site;
 		this.type = type;
+		this.config = stConfig.dev;
+
 		this.jsContainer = [];
 		this.cssContainer = [];
+		this.defineMap = {};
 
 		var that = this;
 
@@ -67,25 +72,32 @@ var json2html = {
 	},
 	postStatic: function(){
 		// css 去重
+		this.sendLog(JSON.stringify(this.cssContainer), __line);
 		var length = this.cssContainer.length;
 		var map = {};
-		var temp = [].concat(this.cssContainer);
+		var temp = [];
+		var that = this;
 		for(var i = 0; i < length; i++) {
 			var cssItem = this.cssContainer[i];
 			for(var o in cssItem) {
 				var val = cssItem[o];
 				if(map[val.from+val.to]) {
-					temp.splice(i, 1);
+					that.sendLog(val.from, __line);
+					// temp.splice(i, 1);
 				}else {
 					map[val.from+val.to] = true;
+					temp.push(cssItem);
 				}
 			}
 		}
 		this.cssContainer = [].concat(temp);
+		this.sendLog(JSON.stringify(this.cssContainer), __line);
 		
 		var arr = [].concat(this.jsContainer).concat(this.cssContainer);
+		this.sendLog(JSON.stringify(arr), __line);
 		var len = arr.length;
 		var that = this;
+		var dMap = {};
 
 		for(var i = 0; i < len; i++) {
 			var item = arr[i];
@@ -93,9 +105,21 @@ var json2html = {
 				var val = item[o];
 				var sps = val.to.split('.');
 				val.from = val.to;
-				val.to = sps[0] + "_" + complie.md5(val.from).substring(0,7) + "." + sps[1];
-				fs.renameSync(val.from, val.to);
-				that.sendLog(val, __line)
+				if(dMap[val.from]) {
+					continue;
+				}
+				dMap[val.from] = true;
+				var md5;
+
+				try {
+					md5 = complie.md5(val.from).substring(0,7)
+				} catch(err) {
+					that.sendError(__line, 501, "服务器内部错误："+err);
+				}
+				val.to = sps[0] + "_" + md5 + "." + sps[1];
+
+				that.sendLog(JSON.stringify(val), __line)
+				util.doCopy(val.from, val.to);
 			}
 		}
 		this.staticArr = [].concat(arr);		
@@ -104,14 +128,24 @@ var json2html = {
 		this.sendLog("addDefine", __line);
 
 		var length = this.staticArr.length;
+		var that = this;
+
 		for(var i = 0; i < length; i++) {
 			var item = this.staticArr[i];
 			for(var o in item) {
 				var val = item[o];
 				if(val.type == "js" && !val.isLib) {
-					var content = fs.readFileSync(val.to).toString();
+					if(that.defineMap[val.to]) {
+						continue;
+					}
+					that.defineMap[val.to] = true;
+
+					var content = fs.readFileSync(val.from).toString();
 					var id = "tetris/parse/"+ o;
-					fs.writeFileSync(val.to, complie.addDefine(id, content));
+
+					var defineContent = complie.addDefine(id, content);
+					that.sendLog(defineContent, __line);
+					fs.writeFileSync(val.to, defineContent);
 				}
 			}
 		}
@@ -140,6 +174,10 @@ var json2html = {
 					var scpt = '<script type="text/javascript" charset="utf-8" src="'+domain+'/'+modPath+'"></script>';
 					headScript += scpt;
 				} else if(val.type == "js" && !val.isLib) {
+					if(this.defineMap[modPath]) {
+						continue;
+					}
+					this.defineMap[modPath] = true;
 					var scpt = '<script type="text/javascript" charset="utf-8" src="'+domain+'/'+modPath+'"></script>';
 					footerScript += scpt
 				} else if(val.type == "css") {
@@ -160,7 +198,8 @@ var json2html = {
 			this.$body.append(brick.getHtml());
 		}
 
-		this.sendLog($.html(), __line);
+		this.$footer.append('<script>var im = require("tetris/parse/_image.js"); im.init(".image-con");</script>')
+		// this.sendLog($.html(), __line);
 		return;
 	},
 	deploy: function(){
@@ -238,18 +277,18 @@ var json2html = {
 		var that = this;
 		var libArr = [];
 		var deferred = Q.defer();
-		this.readConfig().then(function(result){
-			var libs = result.libs;
-			libArr = libArr.concat(libs.common)
-							.concat(libs[that.type])
-							.concat(libs.options);
 
-			that.mkDir('lib');
+		var result = this.config;
+		var libs = result.libs;
+		libArr = libArr.concat(libs.common)
+						.concat(libs[that.type])
+						.concat(libs.options);
 
-			var libPath = that.staticDir + '/lib/';
-			that.doAddLibs(libArr, libPath);
-			deferred.resolve("addLibs");
-		});
+		that.mkDir('lib');
+
+		var libPath = that.staticDir + '/lib/';
+		that.doAddLibs(libArr, libPath);
+		deferred.resolve("addLibs");
 
 		return deferred.promise;
 	},
@@ -273,35 +312,10 @@ var json2html = {
 			};
 			that.jsContainer.push(obj);
 
+			that.sendLog(JSON.stringify(obj),__line);
 			util.doCopy(from, to);
 		}
 		return;
-	},
-	readConfig: function(){
-		var that = this;
-		var deferred = Q.defer();
-		if(this.config && Object.keys(this.config).length) {
-			deferred.resolve(this.config);
-			return deferred.promise;
-		}
-
-		util.fsReadFile_deferd(path.join(__dirname,"config.json")).then(function(result){
-			if(util.isType(result, "String")) {
-				try{
-					result = JSON.parse(result);
-				}catch(err) {
-					err = err || "数据解析错误";
-					that.sendLog(err, __line, "error");
-				}
-			}
-			that.config = result;
-			deferred.resolve(result);
-		}, function(err){
-			that.sendError(__line, 501, "服务器内部错误");
-			deferred.reject(err);
-		});
-
-		return deferred.promise;
 	},
 	sendError: function(lineNum, code, msg){
 		this.sendLog(msg, lineNum, "error");

@@ -1,21 +1,20 @@
 var cheerio = require('cheerio');
 var Base = require('../base/base');
 var cheerio = require('cheerio');
-var $;
 
 var Image = function(model, events) {
 	Base.call(this, model, events);
 
 	this.tpl = [
-		'<div class="piece">',
+		'<div class="piece image-con">',
 			'<a target="_blank" class="image-link">',
 				'<img class="image-item">',
 			'</a>',
 		'</div>'
 	].join('');
 
-	$ = cheerio.load(this.tpl);
-	this.$el = $('.piece');
+	this.$ = cheerio.load(this.tpl);
+	this.$el = this.$('.piece');
 
 	if(!this.value.link) {
 		this.sendError(__line, 402, "image 链接参数为空!");
@@ -42,7 +41,7 @@ var Image = function(model, events) {
 	};
 
 	this.getHtml = function() {
-		return $.html();
+		return this.$.html();
 	};
 
 };

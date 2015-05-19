@@ -2,7 +2,6 @@ var path = require('path');
 var Base = require('../base/base');
 var cheerio = require('cheerio');
 var _ = require('underscore');
-var $;
 
 var Link = function(model, events) {
 	Base.call(this, model, events);
@@ -13,8 +12,8 @@ var Link = function(model, events) {
 		'</div>'
 	].join('');
 	
-	$ = cheerio.load(this.tpl);
-	this.$el = $('.piece');
+	this.$ = cheerio.load(this.tpl);
+	this.$el = this.$('.piece');
 
 	if(!this.value.url) {
 		this.sendError(__line, 402, "link 链接参数为空!");
@@ -39,7 +38,7 @@ var Link = function(model, events) {
 	};
 
 	this.getHtml = function() {
-		return $.html();
+		return this.$.html();
 	};
 
 };

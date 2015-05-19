@@ -82,22 +82,6 @@ var Parse = {
 				obj.name = item.label + '.css';
 				
 				this.cssHolder.push(obj);
-
-				// var content = fs.readFileSync(cssPath).toString(),
-				// 	reg = /url\((\S+?)\)/g;
-
-				// that.sendLog(content, __line);
-				// var matchs = content.match(/url\((\S+?)\)/g);
-				// var len = matchs.length;
-				// for(var j = 0; j < len; j++) {
-				// 	var sub = matchs[j];
-				// 	if(sub.indexOf('url') >= 0) {
-				// 		var sp = sub.split('"');
-				// 		that.staticHolder.push(sp[1]);
-				// 	} else{
-				// 		that.staticHolder.push(sub);
-				// 	}
-				// }
 			}
 
 			var brick = new Brick(item, that.events);
@@ -105,11 +89,7 @@ var Parse = {
 
 			this.parseFac.push(brick);
 		}
-
-		this.sendLog(this.parseFac, __line);
-		this.sendLog(this.jsHolder, __line);
-		this.sendLog(this.cssHolder, __line);
-		this.sendLog(this.staticHolder, __line);
+		this.sendLog(JSON.stringify(this.cssHolder), __line);
 	},
 	createTree: function(data, pid) {
 		if(!data || !data.length) {
