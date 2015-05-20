@@ -31,6 +31,7 @@ var json2html = {
 
 		this.jsContainer = [];
 		this.cssContainer = [];
+		this.requireContainer = [];
 		this.defineMap = {};
 
 		var that = this;
@@ -58,17 +59,19 @@ var json2html = {
 			this.doParse()
 		]);
 
-		promises.then(function(res){
-			that.postStatic();
-			that.sendLog(JSON.stringify(that.staticArr), __line);
+		// this.ct = 0;
+		// promises.then(function(res){
+		// 	this.ct ++;
+		// 	that.postStatic();
+		// 	that.sendLog(JSON.stringify(that.staticArr), __line);
 
-			that.addDefine();
-			that.doCombine();
+		// 	that.addDefine();
+		// 	that.doCombine();
 
-			that.deploy();
-		}, function(err){
-			that.sendError(__line, 501, "服务器内部错误");
-		})
+		// 	that.deploy();
+		// }, function(err){
+		// 	that.sendError(__line, 501, "服务器内部错误");
+		// })
 	},
 	postStatic: function(){
 		// css 去重
@@ -144,8 +147,12 @@ var json2html = {
 					var id = "tetris/parse/"+ o;
 
 					var defineContent = complie.addDefine(id, content);
+
+					that.sendLog(val.to, __line);
 					that.sendLog(defineContent, __line);
+
 					fs.writeFileSync(val.to, defineContent);
+					console.log(fs.readFileSync(val.to).toString())
 				}
 			}
 		}
@@ -187,10 +194,9 @@ var json2html = {
 			}
 		}
 
+		console.log(JSON.stringify(this.requireContainer));
 		this.$head.append(headScript);
 		this.$head.append(headCss);
-		this.$footer.append(footerScript);
-
 
 		var len = parse.parseFac.length;
 		for(var i = 0; i < len; i++) {
@@ -198,8 +204,7 @@ var json2html = {
 			this.$body.append(brick.getHtml());
 		}
 
-		this.$footer.append('<script>var im = require("tetris/parse/_image.js"); im.init(".image-con");</script>')
-		// this.sendLog($.html(), __line);
+		this.$footer.append(footerScript);
 		return;
 	},
 	deploy: function(){
@@ -232,6 +237,7 @@ var json2html = {
 	doParse: function() {
 		var length = this.data.length;
 		var that = this;
+		var deferred = Q.defer();
 
 		this.mkDir("parse");
 
@@ -240,7 +246,31 @@ var json2html = {
 			parse.init(this.response, this.data[i].data, this.site, events);
 			that.moveToStatic(parse.jsHolder, that.jsContainer, staticPath, "js");
 			that.moveToStatic(parse.cssHolder, that.cssContainer, staticPath, "css");
+			that.moveRequire(parse.requireHolder);
 		}
+		
+		deferred.resolve("doParse");
+		return deferred.promise;
+	},
+	moveRequire: function(holder) {
+		if(!holder || !holder.length) {
+			return;
+		}
+
+		var i = 0, item,
+			that = this,
+			length = holder.length,
+			requireMap = {};
+
+		for(; i < length; i ++) {
+			item = holder[i];
+			if(requireMap[item.id]) {
+				continue;
+			}
+			requireMap[item.id] = true;
+			that.requireContainer.push(item);
+		}
+		return;
 	},
 	moveToStatic: function(holder, container, staticPath, tp) {
 		var holders = [].concat(holder);
