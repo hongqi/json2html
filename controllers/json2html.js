@@ -27,12 +27,10 @@ var json2html = {
 		this.isPreview = isPreview;
 		this.site = site;
 		this.type = type;
-		this.config = stConfig.dev;
+		this.config = stConfig.online;
 
 		this.jsContainer = [];
 		this.cssContainer = [];
-		this.requireContainer = [];
-		this.defineMap = {};
 
 		var that = this;
 
@@ -48,163 +46,200 @@ var json2html = {
 		}
 		
 		var promises = Q.all([
-			util.fsReadFile_deferd(templateMap[type]).then(function(result){
-				$ = cheerio.load(result);
-			}, function(err) {
-				err = err || "服务器内部错误";
-				that.sendError(__line, 501, err);
-				return;
-			}),
+			this.setTemplate(),
 			this.addLibs(),
 			this.doParse()
 		]);
 
-		// this.ct = 0;
-		// promises.then(function(res){
-		// 	this.ct ++;
-		// 	that.postStatic();
-		// 	that.sendLog(JSON.stringify(that.staticArr), __line);
+		promises.then(function(){
+			that.addMD5(that.jsContainer);
+			that.addMD5(that.cssContainer);
 
-		// 	that.addDefine();
-		// 	that.doCombine();
+			that.renameStatic();
+			that.assembleDom();
 
-		// 	that.deploy();
-		// }, function(err){
-		// 	that.sendError(__line, 501, "服务器内部错误");
-		// })
+			that.deploy();
+		},function(err){
+			err = err || "服务器内部错误";
+			this.sendError(__line, 502, err);
+			return;
+		});
 	},
-	postStatic: function(){
-		// css 去重
-		this.sendLog(JSON.stringify(this.cssContainer), __line);
-		var length = this.cssContainer.length;
-		var map = {};
-		var temp = [];
+	setTemplate: function() {
+		var deferred = Q.defer();
 		var that = this;
-		for(var i = 0; i < length; i++) {
-			var cssItem = this.cssContainer[i];
-			for(var o in cssItem) {
-				var val = cssItem[o];
-				if(map[val.from+val.to]) {
-					that.sendLog(val.from, __line);
-					// temp.splice(i, 1);
-				}else {
-					map[val.from+val.to] = true;
-					temp.push(cssItem);
-				}
-			}
-		}
-		this.cssContainer = [].concat(temp);
-		this.sendLog(JSON.stringify(this.cssContainer), __line);
+
+		util.fsReadFile_deferd(templateMap[this.type]).then(function(result){
+			$ = cheerio.load(result);
+			deferred.resolve(result);
+		}, function(err) {
+			err = err ||  "服务器内部错误";
+			deferred.reject(err);
+			that.sendError(__line, 501, err);
+		});
+
+		return deferred.promise;
+	},
+	addLibs: function(){
+		var that = this;
+		var libArr = [];
+		var deferred = Q.defer();
+
+		var result = this.config;
+		var libs = result.libs;
+		libArr = libArr.concat(libs.common)
+						.concat(libs[that.type])
+						.concat(libs.options);
+
+		that.mkDir('lib');
+
+		var libPath = that.staticDir + '/lib/';
 		
-		var arr = [].concat(this.jsContainer).concat(this.cssContainer);
-		this.sendLog(JSON.stringify(arr), __line);
-		var len = arr.length;
-		var that = this;
-		var dMap = {};
+		var length = libArr.length, i = 0;
+		for(; i < length; i++) {
+			var file = libArr[i] + '.js';
+			var from = libDir +"/"+ file;
+			var to = libPath + file;
 
-		for(var i = 0; i < len; i++) {
-			var item = arr[i];
-			for(var o in item) {
-				var val = item[o];
-				var sps = val.to.split('.');
-				val.from = val.to;
-				if(dMap[val.from]) {
-					continue;
-				}
-				dMap[val.from] = true;
-				var md5;
+			var obj = {};
+			obj[file] = {
+				type: "js",
+				isLib: true,
+				from: from,
+				to: to
+			};
 
-				try {
-					md5 = complie.md5(val.from).substring(0,7)
-				} catch(err) {
-					that.sendError(__line, 501, "服务器内部错误："+err);
-				}
-				val.to = sps[0] + "_" + md5 + "." + sps[1];
+			that.jsContainer.push(obj);
 
-				that.sendLog(JSON.stringify(val), __line)
-				util.doCopy(val.from, val.to);
-			}
+			var readStr = fs.readFileSync(from);
+			fs.writeFileSync(to, readStr);
 		}
-		this.staticArr = [].concat(arr);		
-	},
-	addDefine: function(){
-		this.sendLog("addDefine", __line);
 
-		var length = this.staticArr.length;
+		deferred.resolve("addLibs");
+
+		return deferred.promise;
+	},
+	doParse: function() {
+		var length = this.data.length;
+		var that = this;
+		var deferred = Q.defer();
+
+		this.mkDir("parse");
+
+		var staticPath = that.staticDir + "/parse/";
+		for(var i = 0; i < length; i++) {
+			parse.init(this.response, this.data[i].data, this.site, events);
+			that.moveToStatic(parse.jsHolder, that.jsContainer, staticPath, "js");
+			that.moveToStatic(parse.cssHolder, that.cssContainer, staticPath, "css");
+		}
+		
+		deferred.resolve("doParse");
+		return deferred.promise;
+	},
+	moveToStatic: function(holder, container, staticPath, tp) {
+		var holders = [].concat(holder);
+		var length = holders.length;
 		var that = this;
 
 		for(var i = 0; i < length; i++) {
-			var item = this.staticArr[i];
-			for(var o in item) {
-				var val = item[o];
-				if(val.type == "js" && !val.isLib) {
-					if(that.defineMap[val.to]) {
-						continue;
-					}
-					that.defineMap[val.to] = true;
+			var item = holders[i];
+			var obj = {};
+			obj[item.name] = {
+				type: tp,
+				from: item.path,
+				to: staticPath + item.name
+			};
 
-					var content = fs.readFileSync(val.from).toString();
-					var id = "tetris/parse/"+ o;
+			container.push(obj);
 
-					var defineContent = complie.addDefine(id, content);
-
-					that.sendLog(val.to, __line);
-					that.sendLog(defineContent, __line);
-
-					fs.writeFileSync(val.to, defineContent);
-					console.log(fs.readFileSync(val.to).toString())
-				}
-			}
+			var to = staticPath + item.name;
+			var readStr = fs.readFileSync(item.path);
+			fs.writeFileSync(to, readStr)
 		}
 		return;
 	},
-	doCombine: function(){
+	addMD5: function(container) {
+		var length = container.length,i = 0, obj;
+
+		for(; i < length; i ++) {
+			obj = container[i];
+			var key = Object.keys(obj)[0];
+			var val = obj[key];
+
+			var sps = val.to.split('.');
+			val.from = val.to;
+
+			var md5;
+			try {
+				md5 = complie.md5(val.from).substring(0,7)
+			} catch(err) {
+				that.sendError(__line, 501, "服务器内部错误,添加MD5错误："+err);
+				return;
+			}
+
+			val.to = sps[0] + "_" + md5 + "." + sps[1];
+		}
+
+		return;
+	},
+	renameStatic: function() {
+		var arr = [].concat(this.jsContainer).concat(this.cssContainer);
+		var length = arr.length, i = 0, item;
+		for(;i < length; i ++) {
+			item = arr[i];
+			var key = Object.keys(item)[0];
+			var val = item[key];
+			fs.renameSync(val.from, val.to);
+		}
+		return;
+	},
+	assembleDom: function() {
 		this.$head = $('head');
 		this.$body = $('#content');
 		this.$footer = $('#footer');
 
-
 		var domain = this.config.domain,
-			length = this.staticArr.length;
+			that = this;
 
 		var headScript = '',
 			headCss = '',
 			footerScript = '';
 
-		for(var i = 0; i < length; i++) {
-			var item = this.staticArr[i];
-			for(var o in item) {
-				var val = item[o];
-				var modPath =  val.to.substring(val.to.indexOf('static/') + 7);
+		this.jsContainer.forEach(function(ele, idx) {
+			var key = Object.keys(ele)[0];
+			var val = ele[key];
+			var modPath =  val.to.substring(val.to.indexOf('static/') + 7);
 
-				if(val.type == "js" && val.isLib) {
-					var scpt = '<script type="text/javascript" charset="utf-8" src="'+domain+'/'+modPath+'"></script>';
-					headScript += scpt;
-				} else if(val.type == "js" && !val.isLib) {
-					if(this.defineMap[modPath]) {
-						continue;
-					}
-					this.defineMap[modPath] = true;
-					var scpt = '<script type="text/javascript" charset="utf-8" src="'+domain+'/'+modPath+'"></script>';
-					footerScript += scpt
-				} else if(val.type == "css") {
-					var css = '<link rel="stylesheet" type="text/css" href="'+domain+'/'+modPath+'">';
-					headCss += css;
-				}
+			if(val.isLib) {
+				var scpt = '<script type="text/javascript" charset="utf-8" src="'+domain+'/'+modPath+'"></script>';
+				headScript += scpt 
+			} else {
+				var scpt = '<script type="text/javascript" charset="utf-8" src="'+domain+'/'+modPath+'"></script>';
+				footerScript += scpt;
 			}
-		}
+		});
 
-		console.log(JSON.stringify(this.requireContainer));
+		this.cssContainer.forEach(function(ele, idx) {
+			var key = Object.keys(ele)[0];
+			var val = ele[key];
+			var modPath =  val.to.substring(val.to.indexOf('static/') + 7);
+
+			var css = '<link rel="stylesheet" type="text/css" href="'+domain+'/'+modPath+'">';
+			headCss += css;
+		});	
+
+		parse.parseFac.forEach(function(ele, idx) {
+			that.$body.append(ele.getHtml());
+		});
+
+		parse.requireHolder.forEach(function(ele, idx) {
+			footerScript += '<script type="text/javascript">' + ele + '</script>';
+		});
+
 		this.$head.append(headScript);
 		this.$head.append(headCss);
-
-		var len = parse.parseFac.length;
-		for(var i = 0; i < len; i++) {
-			var brick = parse.parseFac[i];
-			this.$body.append(brick.getHtml());
-		}
-
 		this.$footer.append(footerScript);
+
 		return;
 	},
 	deploy: function(){
@@ -234,63 +269,6 @@ var json2html = {
 		}
 		return;
 	},
-	doParse: function() {
-		var length = this.data.length;
-		var that = this;
-		var deferred = Q.defer();
-
-		this.mkDir("parse");
-
-		var staticPath = that.staticDir + "/parse/";
-		for(var i = 0; i < length; i++) {
-			parse.init(this.response, this.data[i].data, this.site, events);
-			that.moveToStatic(parse.jsHolder, that.jsContainer, staticPath, "js");
-			that.moveToStatic(parse.cssHolder, that.cssContainer, staticPath, "css");
-			that.moveRequire(parse.requireHolder);
-		}
-		
-		deferred.resolve("doParse");
-		return deferred.promise;
-	},
-	moveRequire: function(holder) {
-		if(!holder || !holder.length) {
-			return;
-		}
-
-		var i = 0, item,
-			that = this,
-			length = holder.length,
-			requireMap = {};
-
-		for(; i < length; i ++) {
-			item = holder[i];
-			if(requireMap[item.id]) {
-				continue;
-			}
-			requireMap[item.id] = true;
-			that.requireContainer.push(item);
-		}
-		return;
-	},
-	moveToStatic: function(holder, container, staticPath, tp) {
-		var holders = [].concat(holder);
-		var length = holders.length;
-		var that = this;
-
-		for(var i = 0; i < length; i++) {
-			var item = holders[i];
-			var obj = {};
-			obj[item.name] = {
-				type: tp,
-				from: item.path,
-				to: staticPath + item.name
-			};
-
-			container.push(obj);
-
-			util.doCopy(item.path, staticPath + item.name);
-		}
-	},
 	mkDir: function(dir) {
 		this.sendLog(dir, __line);
 		var stDir = this.staticDir +"/"+ dir;
@@ -302,50 +280,6 @@ var json2html = {
 				fs.mkdirSync(stDir); 
 			}
 		})
-	},
-	addLibs: function(){
-		var that = this;
-		var libArr = [];
-		var deferred = Q.defer();
-
-		var result = this.config;
-		var libs = result.libs;
-		libArr = libArr.concat(libs.common)
-						.concat(libs[that.type])
-						.concat(libs.options);
-
-		that.mkDir('lib');
-
-		var libPath = that.staticDir + '/lib/';
-		that.doAddLibs(libArr, libPath);
-		deferred.resolve("addLibs");
-
-		return deferred.promise;
-	},
-	doAddLibs: function(libArr, libPath) {
-		if(!libArr.length) {
-			return;
-		}
-		var length = libArr.length;
-		var that = this;
-		for(var i = 0; i < length; i++) {
-			var file = libArr[i] + '.js';
-			var from = libDir +"/"+ file;
-			var to = libPath + file;
-
-			var obj = {};
-			obj[file] = {
-				type: "js",
-				isLib: true,
-				from: from,
-				to: to
-			};
-			that.jsContainer.push(obj);
-
-			that.sendLog(JSON.stringify(obj),__line);
-			util.doCopy(from, to);
-		}
-		return;
 	},
 	sendError: function(lineNum, code, msg){
 		this.sendLog(msg, lineNum, "error");

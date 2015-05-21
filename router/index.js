@@ -1,4 +1,5 @@
 var express = require('express');
+var path = require('path');
 var router = express.Router();
 var util = require('../common/util');
 var events = require('../events').init();
@@ -63,8 +64,9 @@ router.get('/json2html/:file', function(req, res, next) {
 		});
 		res.end();
 	}
-	var filename = 'test/' + req.params.file + '.json';
-
+	var filename = '../test/' + req.params.file + '.json';
+		filename = path.resolve(__dirname, filename);
+		
 	sendLog(filename, __line);
 	util.fsReadFile_deferd(filename).then(function(result) {
 		sendLog(util.isType(result, "String"), __line);

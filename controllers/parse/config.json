@@ -1,0 +1,28 @@
+ {
+ 	"parse": {
+		"picture": "image",
+		"richtext": "text",
+		"telbutton": "phone",
+		"link": "link",
+		"slider": "slider",
+		"floor": "floor"
+	},
+	"site": {
+		"zj": "slides",
+		"ad": "elements"
+	},
+	"ele": {
+		"zj": {
+			"animation": "animations",
+			"value": "content",
+			"style": "style",
+			"name": "type",
+			"uuid": "uuid"
+		},
+		"ad": {
+			"name": "name",
+			"type": "type",
+			"value": "value"
+		}
+	}
+}

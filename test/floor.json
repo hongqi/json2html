@@ -1,0 +1,18 @@
+{
+    "theme": "default",
+    "title": "首页",
+    "version": "0.0.1",
+    "type": "webpage",
+    "elements": [
+            {
+            "name": "floor",
+            "type": "normal",
+            "deleteable": true,
+            "movable": true,
+            "configable": true,
+            "value": {
+                "height": 14
+            }
+        }
+    ]
+}

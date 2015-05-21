@@ -8,7 +8,6 @@ var require, define;
 
     define = function(id, factory) {
         factoryMap[id] = factory;
-        console.log(id, factory)
         var queue = loadingMap[id];
         if (queue) {
             for(var i = queue.length - 1; i >= 0; --i) {
