@@ -68,6 +68,9 @@ var Parse = {
 			this.parseFac.push(brick);
 		}
 
+		var defaultPath = path.resolve(__dirname, config.defaultCss.path);
+		this.pushCss(defaultPath, config.defaultCss.name);
+
 		return;
 	},
 	pushJs: function(jsPath, label) {
