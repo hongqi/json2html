@@ -7,6 +7,10 @@
 		"slider": "slider",
 		"floor": "floor"
 	},
+	"defaultCss": {
+		"name": "default",
+		"path": "./default.css"
+	},
 	"site": {
 		"zj": "slides",
 		"ad": "elements"
